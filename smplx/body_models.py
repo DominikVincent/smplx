@@ -424,6 +424,7 @@ class SMPLLayer(SMPL):
         return_verts=True,
         return_full_pose: bool = False,
         pose2rot: bool = True,
+        compute_rotations: bool = False,
         **kwargs
     ) -> SMPLOutput:
         ''' Forward pass for the SMPL model
@@ -480,11 +481,18 @@ class SMPLLayer(SMPL):
              body_pose.reshape(-1, self.NUM_BODY_JOINTS, 3, 3)],
             dim=1)
 
-        vertices, joints = lbs(betas, full_pose, self.v_template,
-                               self.shapedirs, self.posedirs,
-                               self.J_regressor, self.parents,
-                               self.lbs_weights,
-                               pose2rot=False)
+        if compute_rotations:
+            vertices, joints, R, vert_rot = lbs(betas, full_pose, self.v_template,
+                                   self.shapedirs, self.posedirs,
+                                   self.J_regressor, self.parents,
+                                   self.lbs_weights, pose2rot=pose2rot,
+                                   compute_rotation=compute_rotations)
+        else:
+            vertices, joints, R = lbs(betas, full_pose, self.v_template,
+                                   self.shapedirs, self.posedirs,
+                                   self.J_regressor, self.parents,
+                                   self.lbs_weights, pose2rot=pose2rot,
+                                   compute_rotation=False)
 
         joints = self.vertex_joint_selector(vertices, joints)
         # Map the joints to the current dataset
@@ -497,10 +505,12 @@ class SMPLLayer(SMPL):
 
         output = SMPLOutput(vertices=vertices if return_verts else None,
                             global_orient=global_orient,
+                            joint_glb_orient=R[..., :3, :3],
                             body_pose=body_pose,
                             joints=joints,
                             betas=betas,
-                            full_pose=full_pose if return_full_pose else None)
+                            full_pose=full_pose if return_full_pose else None,
+                            vert_rot=vert_rot if compute_rotations else None)
 
         return output
 

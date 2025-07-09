@@ -31,6 +31,8 @@ class ModelOutput:
     global_orient: Optional[Tensor] = None
     transl: Optional[Tensor] = None
     v_shaped: Optional[Tensor] = None
+    vert_rot: Optional[Tensor] = None
+    joint_glb_orient: Optional[Tensor] = None
 
     def __getitem__(self, key):
         return getattr(self, key)
