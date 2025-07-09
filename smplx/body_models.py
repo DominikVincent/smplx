@@ -1135,6 +1135,7 @@ class SMPLX(SMPLH):
         return_full_pose: bool = False,
         pose2rot: bool = True,
         return_shaped: bool = True,
+        use_only_num_joints: int = -1,
         **kwargs
     ) -> SMPLXOutput:
         '''
@@ -1182,6 +1183,9 @@ class SMPLX(SMPLH):
                 Return the vertices. (default=True)
             return_full_pose: bool, optional
                 Returns the full axis-angle pose vector (default=False)
+            use_only_num_joints: int, optional
+                If given, then only return the joints that are specified by
+                this number. Leads to faster FK but not computing verticies. (default=21)
 
             Returns
             -------
@@ -1244,6 +1248,7 @@ class SMPLX(SMPLH):
                                shapedirs, self.posedirs,
                                self.J_regressor, self.parents,
                                self.lbs_weights, pose2rot=pose2rot,
+                               use_only_num_joints=use_only_num_joints
                                )
 
         lmk_faces_idx = self.lmk_faces_idx.unsqueeze(
@@ -1264,23 +1269,25 @@ class SMPLX(SMPLH):
             lmk_bary_coords = torch.cat(
                 [lmk_bary_coords.expand(batch_size, -1, -1),
                  dyn_lmk_bary_coords], 1)
+            
+        if vertices is not None:
+            landmarks = vertices2landmarks(vertices, self.faces_tensor,
+                                        lmk_faces_idx,
+                                        lmk_bary_coords)
 
-        landmarks = vertices2landmarks(vertices, self.faces_tensor,
-                                       lmk_faces_idx,
-                                       lmk_bary_coords)
-
-        # Add any extra joints that might be needed
-        joints = self.vertex_joint_selector(vertices, joints)
-        # Add the landmarks to the joints
-        joints = torch.cat([joints, landmarks], dim=1)
-        # Map the joints to the current dataset
+            # Add any extra joints that might be needed
+            joints = self.vertex_joint_selector(vertices, joints)
+            # Add the landmarks to the joints
+            joints = torch.cat([joints, landmarks], dim=1)
+            # Map the joints to the current dataset
 
         if self.joint_mapper is not None:
             joints = self.joint_mapper(joints=joints, vertices=vertices)
 
         if apply_trans:
             joints += transl.unsqueeze(dim=1)
-            vertices += transl.unsqueeze(dim=1)
+            if vertices is not None:
+                vertices += transl.unsqueeze(dim=1)
 
         v_shaped = None
         if return_shaped:

@@ -163,6 +163,7 @@ def lbs(
     parents: Tensor,
     lbs_weights: Tensor,
     pose2rot: bool = True,
+    use_only_num_joints: int = -1
 ) -> Tuple[Tensor, Tensor]:
     ''' Performs Linear Blend Skinning with the given shape and pose parameters
 
@@ -191,6 +192,9 @@ def lbs(
             matrices. The default value is True. If False, then the pose tensor
             should already contain rotation matrices and have a size of
             Bx(J + 1)x9
+        use_only_num_joints: int, optional
+            If set to a positive value, only the first `use_only_num_joints`. The rest gets ignored
+            Leads to faster forward kinematics but does not compute vertices.
         dtype: torch.dtype, optional
 
         Returns
@@ -232,22 +236,29 @@ def lbs(
 
     v_posed = pose_offsets + v_shaped
     # 4. Get the global joint location
-    J_transformed, A = batch_rigid_transform(rot_mats, J, parents, dtype=dtype)
+    if use_only_num_joints > 0:
+        rot_mat_s = rot_mats[:, :use_only_num_joints]
+        J_s = J[:, :use_only_num_joints]
+        parents_s = parents[:use_only_num_joints]
+        J_transformed, A = batch_rigid_transform(rot_mat_s, J_s, parents_s, dtype=dtype)
+        verts = None
+    else:
+        J_transformed, A = batch_rigid_transform(rot_mats, J, parents, dtype=dtype)
 
-    # 5. Do skinning:
-    # W is N x V x (J + 1)
-    W = lbs_weights.unsqueeze(dim=0).expand([batch_size, -1, -1])
-    # (N x V x (J + 1)) x (N x (J + 1) x 16)
-    num_joints = J_regressor.shape[0]
-    T = torch.matmul(W, A.view(batch_size, num_joints, 16)) \
-        .view(batch_size, -1, 4, 4)
+        # 5. Do skinning:
+        # W is N x V x (J + 1)
+        W = lbs_weights.unsqueeze(dim=0).expand([batch_size, -1, -1])
+        # (N x V x (J + 1)) x (N x (J + 1) x 16)
+        num_joints = J_regressor.shape[0]
+        T = torch.matmul(W, A.view(batch_size, num_joints, 16)) \
+            .view(batch_size, -1, 4, 4)
 
-    homogen_coord = torch.ones([batch_size, v_posed.shape[1], 1],
-                               dtype=dtype, device=device)
-    v_posed_homo = torch.cat([v_posed, homogen_coord], dim=2)
-    v_homo = torch.matmul(T, torch.unsqueeze(v_posed_homo, dim=-1))
+        homogen_coord = torch.ones([batch_size, v_posed.shape[1], 1],
+                                dtype=dtype, device=device)
+        v_posed_homo = torch.cat([v_posed, homogen_coord], dim=2)
+        v_homo = torch.matmul(T, torch.unsqueeze(v_posed_homo, dim=-1))
 
-    verts = v_homo[:, :, :3, 0]
+        verts = v_homo[:, :, :3, 0]
 
     return verts, J_transformed
 

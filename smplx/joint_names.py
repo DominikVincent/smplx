@@ -268,6 +268,10 @@ SMPL_JOINT_NAMES = [
     "right_hand",
 ]
 
+print("37", SMPLH_JOINT_NAMES[37])
+print("23", SMPLH_JOINT_NAMES[23])
+for i, j in enumerate(SMPLH_JOINT_NAMES):
+    print(i, j)
 
 class Body:
     """
