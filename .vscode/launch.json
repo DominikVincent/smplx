@@ -1,0 +1,19 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "name": "smplx to smpl",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/transfer_model/transfer_phmr_to_smpl.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "args": ["--input-path", "/home/dominik/Documents/repos/PromptHMR/results/TC_S1_acting1_cam4_20251128_085752/subject-1.smpl", 
+            "--output-path", "/home/dominik/Documents/repos/PromptHMR/results/TC_S1_acting1_cam4_20251128_085752/subject-1-smpl"]
+        }
+    ]
+}

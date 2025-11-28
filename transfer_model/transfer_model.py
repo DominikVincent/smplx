@@ -42,7 +42,7 @@ def summary_closure(gt_vertices, var_dict, body_model, mask_ids=None):
             # Simply pass the variable
             param_dict[key] = var
     body_model_output = body_model(
-        return_full_pose=True, get_skin=True, **param_dict)
+        return_full_pose=True, get_skin=True, pose2rot=False, **param_dict)
     est_vertices = body_model_output['vertices']
     if mask_ids is not None:
         est_vertices = est_vertices[:, mask_ids]
@@ -86,7 +86,7 @@ def build_model_forward_closure(
                         param_dict[key] = var
 
             return body_model(
-                return_full_pose=True, get_skin=True, **param_dict)
+                return_full_pose=True, get_skin=True, pose2rot=False, **param_dict)
     else:
         def model_forward():
             param_dict = {}
@@ -99,7 +99,7 @@ def build_model_forward_closure(
                     # Simply pass the variable
                     param_dict[key] = var
 
-            return body_model(return_full_pose=True, get_skin=True,
+            return body_model(return_full_pose=True, get_skin=True, pose2rot=False,
                               **param_dict)
     return model_forward
 
@@ -389,8 +389,10 @@ def run_fitting(
             param_dict[key] = var
 
     body_model_output = body_model(
-        return_full_pose=True, get_skin=True, **param_dict)
-    var_dict.update(body_model_output)
+        return_full_pose=True, get_skin=True, pose2rot=False, **param_dict)
+    for k, v in body_model_output.items():
+        if v is not None:
+            var_dict[k] = v
     var_dict['faces'] = body_model.faces
 
     return var_dict

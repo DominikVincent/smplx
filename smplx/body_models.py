@@ -375,7 +375,7 @@ class SMPL(nn.Module):
             num_repeats = int(batch_size / betas.shape[0])
             betas = betas.expand(num_repeats, -1)
 
-        vertices, joints = lbs(betas, full_pose, self.v_template,
+        vertices, joints, _ = lbs(betas, full_pose, self.v_template,
                                self.shapedirs, self.posedirs,
                                self.J_regressor, self.parents,
                                self.lbs_weights, pose2rot=pose2rot)
@@ -394,6 +394,7 @@ class SMPL(nn.Module):
                             body_pose=body_pose,
                             joints=joints,
                             betas=betas,
+                            transl=transl,
                             full_pose=full_pose if return_full_pose else None)
 
         return output
@@ -767,6 +768,7 @@ class SMPLH(SMPL):
                              body_pose=body_pose,
                              left_hand_pose=left_hand_pose,
                              right_hand_pose=right_hand_pose,
+                             transl=transl,
                              full_pose=full_pose if return_full_pose else None)
 
         return output
@@ -896,6 +898,7 @@ class SMPLHLayer(SMPLH):
                              body_pose=body_pose,
                              left_hand_pose=left_hand_pose,
                              right_hand_pose=right_hand_pose,
+                             transl=transl,
                              full_pose=full_pose if return_full_pose else None)
 
         return output
@@ -1146,6 +1149,7 @@ class SMPLX(SMPLH):
         pose2rot: bool = True,
         return_shaped: bool = True,
         use_only_num_joints: int = -1,
+        compute_rotations: bool = False,
         **kwargs
     ) -> SMPLXOutput:
         '''
@@ -1254,17 +1258,23 @@ class SMPLX(SMPLH):
 
         shapedirs = torch.cat([self.shapedirs, self.expr_dirs], dim=-1)
 
-        vertices, joints = lbs(shape_components, full_pose, self.v_template,
-                               shapedirs, self.posedirs,
-                               self.J_regressor, self.parents,
-                               self.lbs_weights, pose2rot=pose2rot,
-                               use_only_num_joints=use_only_num_joints
-                               )
+        if compute_rotations:
+            vertices, joints, _, vert_rot = lbs(shape_components, full_pose, self.v_template,
+                                   shapedirs, self.posedirs,
+                                   self.J_regressor, self.parents,
+                                   self.lbs_weights, pose2rot=pose2rot,
+                                   compute_rotation=compute_rotations)
+        else:
+            vertices, joints, _ = lbs(shape_components, full_pose, self.v_template,
+                                   shapedirs, self.posedirs,
+                                   self.J_regressor, self.parents,
+                                   self.lbs_weights, pose2rot=pose2rot,
+                                   compute_rotation=False)
 
         lmk_faces_idx = self.lmk_faces_idx.unsqueeze(
             dim=0).expand(batch_size, -1).contiguous()
         lmk_bary_coords = self.lmk_bary_coords.unsqueeze(dim=0).repeat(
-            self.batch_size, 1, 1)
+            batch_size, 1, 1)
         if self.use_face_contour:
             lmk_idx_and_bcoords = find_dynamic_lmk_idx_and_bcoords(
                 vertices, full_pose, self.dynamic_lmk_faces_idx,
@@ -1315,7 +1325,8 @@ class SMPLX(SMPLH):
                               right_hand_pose=right_hand_pose,
                               jaw_pose=jaw_pose,
                               v_shaped=v_shaped,
-                              full_pose=full_pose if return_full_pose else None)
+                              full_pose=full_pose if return_full_pose else None,
+                              vert_rot=vert_rot if compute_rotations else None)
         return output
 
 
